@@ -2,12 +2,13 @@ import re
 import json
 import logging
 from channels import Group
+from channels.auth import channel_session_user_from_http
 from channels.sessions import channel_session
 from .models import Room
 
 log = logging.getLogger(__name__)
 
-@channel_session
+@channel_session_user_from_http
 def ws_connect(message):
     # Extract the room from the message. This expects message.path to be of the
     # form /chat/{label}/, and finds a Room if the message path is applicable,
@@ -31,7 +32,11 @@ def ws_connect(message):
     
     # Need to be explicit about the channel layer so that testability works
     # This may be a FIXME?
-    Group('chat-'+label, channel_layer=message.channel_layer).add(message.reply_channel)
+    chat_label = 'chat-' + label
+
+    group = Group(chat_label, channel_layer=message.channel_layer)
+    group.add(message.reply_channel)
+    group.send({'text': '{"message": " -- just entered room --", "handle": "%s"}' % message.user.username })
 
     message.channel_session['room'] = room.label
 
